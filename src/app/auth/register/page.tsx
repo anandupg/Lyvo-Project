@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useClerk } from '@clerk/nextjs';
-import Navbar from '../../components/navbar/Navbar';
-import Footer from '../../components/footer/Footer';
+import { Check, X } from 'lucide-react';
+import Navbar from '@/app/components/navbar/Navbar';
+import Footer from '@/app/components/footer/Footer';
 
 interface ValidationErrors {
   fullName?: string;
@@ -24,7 +23,6 @@ interface PasswordValidation {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { signUp } = useClerk();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -122,8 +120,8 @@ export default function RegisterPage() {
     if (name.trim().length < 2) {
       return 'Full name must be at least 2 characters long';
     }
-    if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
-      return 'Full name can only contain letters and spaces';
+    if (name.trim().length > 50) {
+      return 'Full name must be less than 50 characters';
     }
     return undefined;
   };
@@ -132,46 +130,31 @@ export default function RegisterPage() {
     if (!email.trim()) {
       return 'Email is required';
     }
-    
-    // Remove leading/trailing spaces
-    const cleanEmail = email.trim();
-    
-    // Basic email format validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(cleanEmail)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
       return 'Please enter a valid email address';
     }
-    
-    // Check for common email issues
-    if (cleanEmail.length > 254) {
-      return 'Email address is too long';
-    }
-    
-    if (cleanEmail.includes('..') || cleanEmail.includes('--')) {
-      return 'Email address contains invalid characters';
-    }
-    
-    if (cleanEmail.startsWith('.') || cleanEmail.endsWith('.') || 
-        cleanEmail.startsWith('-') || cleanEmail.endsWith('-')) {
-      return 'Email address cannot start or end with . or -';
-    }
-    
-    // Check domain has at least one dot
-    const domain = cleanEmail.split('@')[1];
-    if (!domain || !domain.includes('.')) {
-      return 'Please enter a valid email address';
-    }
-    
     return undefined;
   };
 
   const validatePassword = (password: string): string | undefined => {
-    if (!password.trim()) {
+    if (!password) {
       return 'Password is required';
     }
-    const validation = validatePasswordRequirements(password);
-    if (!validation.length || !validation.uppercase || !validation.lowercase || !validation.number || !validation.special) {
-      return 'Password does not meet all requirements';
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!/\d/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+    if (!/[@$!%*?&]/.test(password)) {
+      return 'Password must contain at least one special character (@$!%*?&)';
     }
     return undefined;
   };
@@ -185,29 +168,25 @@ export default function RegisterPage() {
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
-    setFocusedField(null);
     
-    let fieldError: string | undefined;
+    let error: string | undefined;
     
     switch (field) {
       case 'fullName':
-        fieldError = validateFullName(fullName);
+        error = validateFullName(fullName);
         break;
       case 'email':
-        fieldError = validateEmail(email);
+        error = validateEmail(email);
         break;
       case 'password':
-        fieldError = validatePassword(password);
+        error = validatePassword(password);
         break;
       case 'agreeToTerms':
-        fieldError = validateTerms(agreeToTerms);
+        error = validateTerms(agreeToTerms);
         break;
     }
     
-    setErrors(prev => ({
-      ...prev,
-      [field]: fieldError
-    }));
+    setErrors(prev => ({ ...prev, [field]: error }));
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -230,19 +209,15 @@ export default function RegisterPage() {
   };
 
   const validateForm = (): boolean => {
-    const fullNameError = validateFullName(fullName);
-    const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
-    const termsError = validateTerms(agreeToTerms);
-    
     const newErrors: ValidationErrors = {};
-    if (fullNameError) newErrors.fullName = fullNameError;
-    if (emailError) newErrors.email = emailError;
-    if (passwordError) newErrors.password = passwordError;
-    if (termsError) newErrors.agreeToTerms = termsError;
+    
+    newErrors.fullName = validateFullName(fullName);
+    newErrors.email = validateEmail(email);
+    newErrors.password = validatePassword(password);
+    newErrors.agreeToTerms = validateTerms(agreeToTerms);
     
     setErrors(newErrors);
-    setTouched({ 
+    setTouched({
       fullName: true, 
       email: true, 
       password: true, 
@@ -262,47 +237,23 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
-      // Parse full name into first and last name
-      const nameParts = fullName.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      // Create user with Clerk
-      const result = await signUp.create({
-        emailAddress: email.trim(),
-        password,
-        firstName,
-        lastName,
-      });
-
-      if (result.status === 'complete') {
-        // User created successfully
-        setRegisteredEmail(email.trim());
-        setShowSuccessMessage(true);
-      } else if (result.status === 'missing_requirements') {
-        // Handle email verification requirement
-        setRegisteredEmail(email.trim());
-        setShowSuccessMessage(true);
-      } else {
-        throw new Error('Registration failed');
-      }
+      // Simulate registration process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Show success message
+      setRegisteredEmail(email.trim());
+      setShowSuccessMessage(true);
     } catch (error: any) {
       console.error('Registration error:', error);
-      const errorMessage = error.errors?.[0]?.message || error.message || 'Registration failed. Please try again.';
-      alert(errorMessage);
+      alert('Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = () => {
-    setIsLoading(true);
-    // Use Clerk's OAuth for Google sign-in
-    signUp.authenticateWithRedirect({
-      strategy: 'oauth_google',
-      redirectUrl: '/dashboard',
-      redirectUrlComplete: '/dashboard',
-    });
+    // Simulate Google sign-in
+    alert('Google sign-in functionality would be implemented here');
   };
 
   const handleNavigateToLogin = () => {
@@ -330,7 +281,7 @@ export default function RegisterPage() {
                   Your account has been created for <strong>{registeredEmail}</strong>
                 </p>
                 <p className="text-sm text-gray-500 mb-6">
-                  Please check your email to verify your account before signing in.
+                  You can now sign in to your account.
                 </p>
                 <div className="space-y-3">
                   <button
@@ -359,11 +310,11 @@ export default function RegisterPage() {
                 <p className="text-sm sm:text-base text-gray-600">Join us and start your journey today</p>
               </div>
 
-              {/* Google Sign In */}
+              {/* Google Sign In Button */}
               <button
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+                className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center mb-6"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                   <path
@@ -387,34 +338,35 @@ export default function RegisterPage() {
               </button>
 
               {/* Divider */}
-              <div className="my-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500 font-medium">OR CREATE ACCOUNT WITH EMAIL</span>
-                  </div>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with email</span>
                 </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Full Name Field */}
                 <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-red-600 mb-2">
-                    Name
+                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
                   </label>
                   <input
+                    type="text"
                     id="fullName"
                     name="fullName"
-                    type="text"
                     value={fullName}
                     onChange={(e) => handleInputChange('fullName', e.target.value)}
                     onBlur={() => handleBlur('fullName')}
-                    className={`block w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400 ${
-                      touched.fullName && errors.fullName 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-gray-300'
+                    onFocus={() => setFocusedField('fullName')}
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 ${
+                      focusedField === 'fullName' 
+                        ? 'border-red-500 shadow-sm' 
+                        : touched.fullName && errors.fullName 
+                          ? 'border-red-500' 
+                          : 'border-gray-300 hover:border-gray-400'
                     }`}
                     placeholder="Enter your full name"
                   />
@@ -425,20 +377,23 @@ export default function RegisterPage() {
 
                 {/* Email Field */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-red-600 mb-2">
-                    Email
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
                   </label>
                   <input
+                    type="email"
                     id="email"
                     name="email"
-                    type="email"
                     value={email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     onBlur={() => handleBlur('email')}
-                    className={`block w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400 ${
-                      touched.email && errors.email 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-gray-300'
+                    onFocus={() => setFocusedField('email')}
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 ${
+                      focusedField === 'email' 
+                        ? 'border-red-500 shadow-sm' 
+                        : touched.email && errors.email 
+                          ? 'border-red-500' 
+                          : 'border-gray-300 hover:border-gray-400'
                     }`}
                     placeholder="Enter your email address"
                   />
@@ -449,57 +404,44 @@ export default function RegisterPage() {
 
                 {/* Password Field */}
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-red-600 mb-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                     Password
                   </label>
                   <div className="relative">
                     <input
+                      type={showPassword ? 'text' : 'password'}
                       id="password"
                       name="password"
-                      type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => handleInputChange('password', e.target.value)}
                       onBlur={() => handleBlur('password')}
-                      onFocus={() => setShowPasswordValidation(true)}
-                      className={`block w-full pr-10 px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400 ${
-                        touched.password && errors.password 
-                          ? 'border-red-500 focus:ring-red-500' 
-                          : 'border-gray-300'
+                      onFocus={() => setFocusedField('password')}
+                      className={`w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 ${
+                        focusedField === 'password' 
+                          ? 'border-red-500 shadow-sm' 
+                          : touched.password && errors.password 
+                            ? 'border-red-500' 
+                            : 'border-gray-300 hover:border-gray-400'
                       }`}
-                      placeholder="Enter your password"
+                      placeholder="Create a strong password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors duration-200"
                     >
                       {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                        </svg>
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
                       )}
                     </button>
                   </div>
-                  
-                  {/* Password Strength Indicator */}
-                  {password && (
-                    <div className="mt-3">
-                      {/* Strength Bar */}
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            passwordStrength < 20 ? 'bg-red-500' :
-                            passwordStrength < 40 ? 'bg-orange-500' :
-                            passwordStrength < 60 ? 'bg-yellow-500' :
-                            passwordStrength < 80 ? 'bg-blue-500' :
-                            'bg-green-500'
-                          }`}
-                          style={{ width: `${passwordStrength}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-                  
                   {touched.password && errors.password && (
                     <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                   )}
