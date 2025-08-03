@@ -116,7 +116,7 @@ export default function Navbar() {
                   </div>
                   <div className="block">
                     <p className="text-xs font-medium text-gray-900 truncate max-w-20">
-                      {user.displayName || user.email}
+                      {user.displayName || user.email || 'User'}
                     </p>
                   </div>
                 </div>
