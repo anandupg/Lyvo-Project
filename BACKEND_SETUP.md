@@ -1,12 +1,12 @@
 # Backend Setup Guide
 
-This guide will help you set up the backend authentication system using Clerk and MongoDB for the Lyvo+ application.
+This guide will help you set up the backend authentication system using your custom implementation for the Lyvo+ application.
 
 ## Prerequisites
 
 - Node.js (v18 or higher)
-- MongoDB database (local or cloud)
-- Clerk account and application
+- Database of your choice (PostgreSQL, MySQL, MongoDB, etc.)
+- Email service (Gmail, SendGrid, etc.)
 - Git
 
 ## Quick Start
@@ -14,8 +14,8 @@ This guide will help you set up the backend authentication system using Clerk an
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Set up environment variables
-4. Configure Clerk authentication
-5. Set up MongoDB connection
+4. Configure your custom authentication backend
+5. Set up database connection
 6. Run the development server: `npm run dev`
 
 ## Environment Configuration
@@ -25,103 +25,98 @@ This guide will help you set up the backend authentication system using Clerk an
 Create a `.env.local` file in the root directory with the following variables:
 
 ```env
-# Clerk Configuration
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
+# App Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017/lyvo-plus
-
-# JWT Secret (if needed for additional tokens)
+# Custom Authentication
 JWT_SECRET=your_jwt_secret_key_here
 
-# App Configuration
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret_here
+# Database Configuration (Choose your database)
+DATABASE_URL=your_database_connection_string
+# or for MongoDB: MONGODB_URI=mongodb://localhost:27017/lyvo-plus
+
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_email_password
+
+# OAuth Configuration (Optional)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```
 
-## 2. Clerk Setup
+## 2. Custom Authentication Setup
 
-1. Create a new Clerk application at [clerk.com](https://clerk.com)
-2. Get your publishable key and secret key from the Clerk dashboard
-3. Configure your application settings:
-   - Set up email templates
-   - Configure social login providers (optional)
-   - Set up webhooks for user events (optional)
+### JWT Configuration
+1. Generate a secure JWT secret
+2. Configure JWT token expiration
+3. Set up refresh token mechanism
 
-## 3. MongoDB Setup
-
-### Local MongoDB
-1. Install MongoDB locally
-2. Start MongoDB service
-3. Create a database named `lyvo-plus`
-
-### Cloud MongoDB (MongoDB Atlas)
-1. Create a MongoDB Atlas account
-2. Create a new cluster
-3. Get your connection string
-4. Update `MONGODB_URI` in your environment variables
-
-## Database Schema
+### Database Schema
 
 ### User Collection
-```javascript
-{
-  clerkId: String (unique),
-  email: String (unique),
-  fullName: String,
-  businessName: String,
-  userType: String (enum: ['user', 'owner']),
-  emailVerified: Boolean,
-  createdAt: Date,
-  updatedAt: Date,
-  lastLogin: Date,
-  profileCompleted: Boolean,
-  isActive: Boolean
-}
+```sql
+-- Example for PostgreSQL
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  full_name VARCHAR(255),
+  business_name VARCHAR(255),
+  user_type VARCHAR(50) DEFAULT 'user',
+  email_verified BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  last_login TIMESTAMP,
+  profile_completed BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE
+);
 ```
 
 ## Authentication Flow
 
 ### 1. User Registration
 - User fills out registration form
-- Clerk handles user creation and email verification
-- Backend creates user record in MongoDB with `clerkId`
+- Backend validates input and creates user record
+- Send email verification
 - User receives confirmation email
 
 ### 2. User Login
 - User enters credentials
-- Clerk handles authentication
-- Backend verifies user exists in MongoDB
-- User is redirected to dashboard
+- Backend verifies password and generates JWT
+- User is redirected to dashboard with token
 
 ### 3. Session Management
-- Clerk handles session management automatically
-- Middleware protects routes
-- User state available via `useUser()` hook
+- JWT tokens for session management
+- Custom middleware protects routes
+- User state available via custom hooks
 
 ### 4. User Logout
-- Clerk handles logout process
-- Session is cleared automatically
-- User is redirected to home page
+- Clear JWT tokens
+- Update last login timestamp
+- Redirect to home page
 
 ## API Endpoints
 
 ### Authentication Routes
 - `POST /api/auth/register` - Create new user
 - `POST /api/auth/login` - Authenticate user
+- `POST /api/auth/logout` - Logout user
+- `POST /api/auth/verify-email` - Verify email address
+- `POST /api/auth/reset-password` - Reset password
 
 ### Protected Routes
-- All dashboard routes are protected by Clerk middleware
+- All dashboard routes are protected by custom middleware
 - User must be authenticated to access protected content
 
 ## Security Features
 
-- **Email Verification**: Automatic email confirmation
-- **Password Security**: Clerk handles password hashing and validation
-- **Session Management**: Secure session handling
-- **Rate Limiting**: Built-in protection against abuse
-- **CSRF Protection**: Automatic CSRF protection
+- **Email Verification**: Custom email confirmation system
+- **Password Security**: Bcrypt password hashing
+- **JWT Tokens**: Secure session management
+- **Rate Limiting**: Custom protection against abuse
+- **CSRF Protection**: Custom CSRF protection
 
 ## Development
 
@@ -140,18 +135,18 @@ npm start
 
 ### Common Issues
 
-1. **Clerk Configuration Error:**
-   - Verify your Clerk environment variables
-   - Check Clerk dashboard settings
-   - Ensure application is properly configured
+1. **JWT Configuration Error:**
+   - Verify your JWT secret is set
+   - Check token expiration settings
+   - Ensure proper token validation
 
-2. **MongoDB Connection Error:**
-   - Verify MongoDB is running
+2. **Database Connection Error:**
+   - Verify database is running
    - Check connection string
    - Ensure network access is configured
 
 3. **Authentication Issues:**
-   - Check Clerk webhook configuration
+   - Check email service configuration
    - Verify email templates are set up
    - Check browser console for errors
 
@@ -163,14 +158,14 @@ npm start
 ## Production Deployment
 
 1. Set up production environment variables
-2. Configure Clerk for production
-3. Set up MongoDB production cluster
+2. Configure production database
+3. Set up email service for production
 4. Deploy to your hosting platform
 5. Configure domain and SSL certificates
 
 ## Additional Resources
 
-1. [Clerk Documentation](https://clerk.com/docs)
-2. [MongoDB Documentation](https://docs.mongodb.com)
-3. [Next.js Documentation](https://nextjs.org/docs)
-4. Review Clerk and MongoDB documentation 
+1. [Next.js Documentation](https://nextjs.org/docs)
+2. [JWT.io](https://jwt.io/) - JWT debugging
+3. [Bcrypt](https://github.com/dcodeIO/bcrypt.js) - Password hashing
+4. Review your chosen database documentation 

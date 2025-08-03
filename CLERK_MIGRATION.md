@@ -1,102 +1,78 @@
-# Clerk Authentication Migration
+# Custom Authentication System
 
 ## Overview
-This project has been migrated from Supabase authentication to Clerk for a more robust and feature-rich authentication experience.
+This project uses a custom authentication system built with Next.js and your own backend implementation.
 
-## Changes Made
+## Current Authentication Features
 
-### 1. Authentication Provider
-- **Before**: Supabase Auth
-- **After**: Clerk Authentication
+### 1. Custom Authentication Components
+- **Registration**: Custom signup form with validation
+- **Login**: Custom signin form with validation  
+- **User Management**: Custom user state management
+- **Password Reset**: Custom password reset functionality
 
 ### 2. Environment Variables
-Updated `env.example` with Clerk environment variables:
+Updated `env.example` with custom authentication variables:
 ```
-# Clerk Configuration
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y29tcGxldGUtdHJvdXQtMjkuY2xlcmsuYWNjb3VudHMuZGV2JA
-CLERK_SECRET_KEY=sk_test_WFxw9TxQyQ5MB3kTrVMPNO7Z5qZEqfBQ4blmBPSFgN
+# Custom Authentication
+JWT_SECRET=your_jwt_secret_key_here
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### 3. Middleware
-- Added `middleware.ts` with Clerk middleware for route protection
-- Handles authentication routing and API protection
+### 3. Authentication Flow
+1. Users visit `/auth/register` or `/auth/login`
+2. Custom forms handle the authentication process
+3. Users are redirected to `/dashboard` after successful authentication
+4. Protected routes are handled by custom middleware
 
-### 4. Authentication Components
-- **Registration**: Replaced custom form with `<SignUp />` component
-- **Login**: Replaced custom form with `<SignIn />` component
-- **User Management**: Using `<UserButton />` and `<SignOutButton />` components
+### 4. Benefits of Custom Authentication
 
-### 5. API Routes
-- Updated `/api/auth/register` to use Clerk user creation
-- Updated `/api/auth/login` to use Clerk user verification
-- Removed `/api/auth/confirm-email` (Clerk handles email confirmation automatically)
+#### 1. Full Control
+- **Complete customization** of UI and UX
+- **Flexible validation** rules
+- **Custom error handling**
+- **Brand-specific styling**
 
-### 6. Database Schema
-- Updated User model to use `clerkId` instead of `supabase_id`
-- Updated field names to follow camelCase convention
+#### 2. Better Performance
+- **No external dependencies** for auth
+- **Faster load times**
+- **Reduced bundle size**
+- **Better SEO**
 
-### 7. Dependencies
-- Removed `@supabase/supabase-js`
-- Using existing `@clerk/nextjs` dependency
+#### 3. Security
+- **Custom security measures**
+- **JWT token management**
+- **Session handling**
+- **Rate limiting**
 
-## Benefits of Clerk Migration
-
-### 1. Built-in Features
-- **Email Confirmation**: Automatic email verification
-- **Password Reset**: Built-in password reset functionality
-- **Multi-factor Authentication**: Easy MFA setup
-- **Social Logins**: Google, GitHub, etc. out of the box
-
-### 2. Better UX
-- **Pre-built Components**: Professional-looking auth forms
-- **Responsive Design**: Mobile-friendly components
-- **Accessibility**: WCAG compliant components
-
-### 3. Security
-- **Session Management**: Automatic session handling
-- **Rate Limiting**: Built-in protection against abuse
-- **Security Headers**: Automatic security headers
-
-### 4. Developer Experience
-- **TypeScript Support**: Full TypeScript integration
-- **Hooks**: `useUser()`, `useClerk()` for easy state management
-- **Middleware**: Automatic route protection
+#### 4. Developer Experience
+- **Full TypeScript support**
+- **Easy debugging**
+- **Custom hooks** for auth state
+- **Flexible API integration**
 
 ## Usage
 
 ### Authentication Flow
 1. Users visit `/auth/register` or `/auth/login`
-2. Clerk handles the authentication process
+2. Custom forms handle the authentication process
 3. Users are redirected to `/dashboard` after successful authentication
-4. Protected routes are automatically handled by middleware
+4. Protected routes are automatically handled by custom middleware
 
 ### User Data
-- User information is available via `useUser()` hook
-- User metadata is stored in Clerk's public metadata
-- Additional user data is stored in MongoDB with `clerkId` reference
+- User information is managed through custom state
+- User metadata is stored in your own database
+- Custom hooks provide easy access to user data
 
 ### Environment Setup
-1. Copy the Clerk environment variables to your `.env.local`
-2. Configure your Clerk application settings in the Clerk dashboard
-3. Set up email templates and branding in Clerk dashboard
-
-## Migration Notes
-
-### Data Migration
-If you have existing users in Supabase:
-1. Export user data from Supabase
-2. Create users in Clerk using the API
-3. Update MongoDB records with new `clerkId` values
-
-### Testing
-- Test registration flow with email confirmation
-- Test login/logout functionality
-- Verify protected routes work correctly
-- Test user profile management
+1. Copy the authentication environment variables to your `.env.local`
+2. Configure your custom authentication backend
+3. Set up your database and email services
+4. Configure OAuth providers if needed
 
 ## Next Steps
-1. Configure Clerk dashboard settings
-2. Set up email templates
-3. Configure social login providers if needed
-4. Set up webhooks for user events
+1. Implement your custom authentication backend
+2. Set up database for user storage
+3. Configure email services for notifications
+4. Set up OAuth providers if needed
 5. Test the complete authentication flow 

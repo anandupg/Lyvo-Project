@@ -2,15 +2,36 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Menu, X, User, Settings } from 'lucide-react';
+import { Menu, X, User, Settings, Home, Info, Briefcase, Phone, Search, Bell } from 'lucide-react';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+    // Prevent body scroll when menu is open
+    if (!isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+    document.body.style.overflow = 'unset';
   };
 
   const toggleProfileDropdown = () => {
@@ -28,141 +49,219 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      // Clean up body scroll
+      document.body.style.overflow = 'unset';
     };
   }, []);
 
+  const menuItems = [
+    { href: '/', label: 'Home', icon: Home },
+    { href: '/about', label: 'About', icon: Info },
+    { href: '/services', label: 'Services', icon: Briefcase },
+    { href: '/contact', label: 'Contact', icon: Phone },
+  ];
+
   return (
-    <nav className="bg-white shadow-lg border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo/Brand */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">L</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">Lyvo+</span>
-            </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              href="/" 
-              className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-            >
-              Home
-            </Link>
-            <Link 
-              href="/about" 
-              className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-            >
-              About
-            </Link>
-            <Link 
-              href="/services" 
-              className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-            >
-              Services
-            </Link>
-            <Link 
-              href="/contact" 
-              className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-            >
-              Contact
-            </Link>
-          </div>
-
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Link 
-              href="/auth/login"
-              className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-            >
-              Sign In
-            </Link>
-            <Link 
-              href="/auth/register"
-              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105"
-            >
-              Get Started
-            </Link>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={toggleMenu}
-              className="text-gray-700 hover:text-red-600 transition-colors duration-200"
-            >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
-              <Link 
-                href="/" 
-                className="block px-3 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
+    <>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-100' 
+          : 'bg-white/90 backdrop-blur-sm'
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16 lg:h-20">
+            {/* Logo/Brand */}
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center space-x-3 group">
+                <div className="relative">
+                  <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                    <span className="text-white font-bold text-lg lg:text-xl">L</span>
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xl lg:text-2xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300">Lyvo+</span>
+                  <span className="text-xs text-gray-500 font-medium hidden sm:block">Co-Living Platform</span>
+                </div>
               </Link>
-              <Link 
-                href="/about" 
-                className="block px-3 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                About
-              </Link>
-              <Link 
-                href="/services" 
-                className="block px-3 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Services
-              </Link>
-              <Link 
-                href="/contact" 
-                className="block px-3 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact
-              </Link>
+            </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center space-x-1">
+              {menuItems.map((item) => (
+                <Link 
+                  key={item.href}
+                  href={item.href} 
+                  className="relative px-4 py-2 text-gray-700 hover:text-red-600 transition-all duration-300 font-medium group"
+                >
+                  <span className="relative z-10">{item.label}</span>
+                  <div className="absolute inset-0 bg-red-50 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 origin-center"></div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Desktop Right Section */}
+            <div className="hidden lg:flex items-center space-x-4">
+              {/* Search Button */}
+              <button className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200">
+                <Search className="h-5 w-5" />
+              </button>
               
-              {/* Mobile Auth Buttons */}
-              <div className="pt-4 pb-3 border-t border-gray-200">
+              {/* Notifications */}
+              <button className="relative p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200">
+                <Bell className="h-5 w-5" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+              </button>
+
+              {/* Auth Buttons */}
+              <div className="flex items-center space-x-3 ml-4">
                 <Link 
                   href="/auth/login"
-                  className="block px-3 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
-                  onClick={() => setIsMenuOpen(false)}
+                  className="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium"
                 >
-                  <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4" />
-                    <span>Sign In</span>
-                  </div>
+                  Sign In
                 </Link>
-                <div className="mt-3 space-y-2">
-                  <Link 
-                    href="/auth/register"
-                    className="block px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Get Started
-                  </Link>
+                <Link 
+                  href="/auth/register"
+                  className="relative px-6 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <span className="relative z-10">Get Started</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                </Link>
+              </div>
+            </div>
+
+            {/* Mobile menu button */}
+            <div className="lg:hidden">
+              <button
+                onClick={toggleMenu}
+                className="relative z-50 p-2 text-gray-700 hover:text-red-600 transition-all duration-300 rounded-lg hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                aria-label="Toggle menu"
+              >
+                <div className="relative w-6 h-6">
+                  <span 
+                    className={`absolute top-1/2 left-0 w-6 h-0.5 bg-current transform transition-all duration-300 ease-out ${
+                      isMenuOpen ? 'rotate-45 translate-y-0' : '-translate-y-1'
+                    }`}
+                  />
+                  <span 
+                    className={`absolute top-1/2 left-0 w-6 h-0.5 bg-current transform transition-all duration-300 ease-out ${
+                      isMenuOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'
+                    }`}
+                  />
+                  <span 
+                    className={`absolute top-1/2 left-0 w-6 h-0.5 bg-current transform transition-all duration-300 ease-out ${
+                      isMenuOpen ? '-rotate-45 translate-y-0' : 'translate-y-1'
+                    }`}
+                  />
                 </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile Navigation Overlay */}
+      <div className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${
+        isMenuOpen ? 'visible opacity-100' : 'invisible opacity-0'
+      }`}>
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+          onClick={closeMenu}
+        />
+        
+        {/* Mobile Menu */}
+        <div className={`absolute inset-y-0 right-0 w-80 bg-white shadow-xl transform transition-transform duration-300 ease-out ${
+          isMenuOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}>
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">L</span>
+                </div>
+                <div>
+                  <span className="text-lg font-semibold text-gray-900">Lyvo+</span>
+                </div>
+              </div>
+              <button
+                onClick={closeMenu}
+                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors duration-200"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Menu Items */}
+            <div className="flex-1 px-4 py-3 overflow-y-auto">
+              <div className="space-y-1">
+                {menuItems.map((item, index) => (
+                  <Link 
+                    key={item.href}
+                    href={item.href} 
+                    className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium group"
+                    onClick={closeMenu}
+                  >
+                    <item.icon className="h-4 w-4 text-gray-500 group-hover:text-red-500" />
+                    <span className="text-sm">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Divider */}
+              <div className="my-4 border-t border-gray-100"></div>
+
+              {/* Quick Actions */}
+              <div className="space-y-1">
+                <button className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium group w-full">
+                  <Search className="h-4 w-4 text-gray-500 group-hover:text-red-500" />
+                  <span className="text-sm">Search</span>
+                </button>
+                
+                <button className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium group w-full">
+                  <div className="relative">
+                    <Bell className="h-4 w-4 text-gray-500 group-hover:text-red-500" />
+                    <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"></div>
+                  </div>
+                  <span className="text-sm">Notifications</span>
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="my-4 border-t border-gray-100"></div>
+
+              {/* Auth Section */}
+              <div className="space-y-2">
+                <Link 
+                  href="/auth/login"
+                  className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium group"
+                  onClick={closeMenu}
+                >
+                  <User className="h-4 w-4 text-gray-500 group-hover:text-red-500" />
+                  <span className="text-sm">Sign In</span>
+                </Link>
+                
+                <Link 
+                  href="/auth/register"
+                  className="flex items-center justify-center px-3 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm"
+                  onClick={closeMenu}
+                >
+                  <span className="text-sm">Get Started</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 border-t border-gray-100">
+              <div className="text-center">
+                <p className="text-xs text-gray-500">© 2024 Lyvo+</p>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
-    </nav>
+    </>
   );
-} 
+}

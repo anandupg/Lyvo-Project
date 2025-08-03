@@ -121,7 +121,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="flex items-center justify-center p-2 sm:p-4" style={{ minHeight: 'calc(100vh - 64px)' }}>
+      <div className="flex items-center justify-center p-2 sm:p-4 pt-20 lg:pt-24" style={{ minHeight: 'calc(100vh - 80px)' }}>
         <div className="w-full max-w-lg mx-auto">
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border border-gray-100">
             {/* Header */}
