@@ -26,6 +26,7 @@ import Navbar from '../../components/navbar/Navbar';
 import Footer from '../../components/footer/Footer';
 import { useLoading } from '../../hooks/useLoading';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import ProtectedRoute from '../../components/ProtectedRoute';
 
 export default function OwnerDashboard() {
   const { isLoading, withLoading } = useLoading();
@@ -87,11 +88,12 @@ export default function OwnerDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      {/* Dashboard Header */}
-      <div className="pt-16 bg-white shadow-sm border-b border-gray-200">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        
+        {/* Dashboard Header */}
+        <div className="pt-16 bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -298,13 +300,14 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      <Footer />
-      
-      {/* Global Loading Overlay */}
-      <LoadingOverlay 
-        isVisible={isLoading} 
-        message="Processing..." 
-      />
-    </div>
+        <Footer />
+        
+        {/* Global Loading Overlay */}
+        <LoadingOverlay 
+          isVisible={isLoading} 
+          message="Processing..." 
+        />
+      </div>
+    </ProtectedRoute>
   );
 } 

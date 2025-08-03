@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Check, X } from 'lucide-react';
 import Navbar from '@/app/components/navbar/Navbar';
 import Footer from '@/app/components/footer/Footer';
+import { registerWithEmailAndPassword, signInWithGoogle, auth } from '@/lib/firebase';
 
 interface ValidationErrors {
   fullName?: string;
@@ -273,7 +274,8 @@ export default function RegisterPage() {
       agreeToTerms: true 
     });
     
-    return Object.keys(newErrors).length === 0;
+    // Check if there are any actual error values (not undefined)
+    return !Object.values(newErrors).some(error => error !== undefined);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -286,12 +288,23 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
-      // Simulate registration process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Register with Firebase
+      const { user, error } = await registerWithEmailAndPassword(email.trim(), password, fullName.trim());
       
-      // Show success message
-      setRegisteredEmail(email.trim());
-      setShowSuccessMessage(true);
+      if (error) {
+        console.error('Registration error:', error);
+        alert(`Registration failed: ${error}`);
+        return;
+      }
+      
+      if (user) {
+        // Sign out the user immediately after registration
+        await auth.signOut();
+        
+        // Show success message with email verification instructions
+        setRegisteredEmail(email.trim());
+        setShowSuccessMessage(true);
+      }
     } catch (error: any) {
       console.error('Registration error:', error);
       alert('Registration failed. Please try again.');
@@ -300,14 +313,59 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    // Simulate Google sign-in
-    alert('Google sign-in functionality would be implemented here');
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    
+    try {
+      const { user, error } = await signInWithGoogle();
+      
+      if (error) {
+        console.error('Google sign-in error:', error);
+        
+        // Provide more helpful error messages
+        if (error.includes('popup')) {
+          alert('Google sign-in popup was blocked. Please allow popups for this site and try again, or use email/password registration.');
+        } else if (error.includes('sessionStorage')) {
+          alert('Google sign-in encountered a browser compatibility issue. Please try using email/password registration instead.');
+        } else {
+          alert(`Google sign-in failed: ${error}. Please try again or use email/password registration.`);
+        }
+        return;
+      }
+      
+      // For mobile devices, user will be null because they're being redirected
+      // For desktop devices, user will be available immediately
+      if (user) {
+        // Redirect to dashboard after successful Google sign-in (desktop)
+        router.push('/dashboard');
+      } else {
+        // For mobile devices, the user is being redirected
+        // The AuthContext will handle the redirect result when they return
+        console.log('Google sign-in initiated. You will be redirected to Google...');
+        // Show a brief message to the user
+        alert('Redirecting to Google for sign-in. You will be returned to Lyvo+ after signing in.');
+      }
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      alert('Google sign-in failed. Please try again or use email/password registration.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleNavigateToLogin = () => {
     router.push('/auth/login');
   };
+
+  // Auto-redirect to login after 5 seconds
+  useEffect(() => {
+    if (showSuccessMessage) {
+      const timer = setTimeout(() => {
+        router.push('/auth/login');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessMessage, router]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -316,35 +374,110 @@ export default function RegisterPage() {
         <div className="w-full max-w-lg mx-auto">
           {/* Success Message Card */}
           {showSuccessMessage && (
-            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border border-gray-100">
+            <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 md:p-10 border border-gray-100">
               <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                {/* Success Icon */}
+                <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                  Account Created Successfully!
+                
+                {/* Main Heading */}
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+                  Welcome to Lyvo+! 🎉
                 </h1>
-                <p className="text-sm sm:text-base text-gray-600 mb-4">
-                  Your account has been created for <strong>{registeredEmail}</strong>
+                
+                {/* Subtitle */}
+                <p className="text-lg text-gray-600 mb-6">
+                  Your account has been successfully created
                 </p>
-                <p className="text-sm text-gray-500 mb-6">
-                  You can now sign in to your account.
-                </p>
-                <div className="space-y-3">
+                
+                {/* Email Display */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-center justify-center space-x-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    </svg>
+                    <span className="text-blue-900 font-semibold">{registeredEmail}</span>
+                  </div>
+                </div>
+                
+                {/* Verification Instructions */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6 mb-8">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-amber-900 mb-3">
+                        One More Step to Complete Your Registration
+                      </h3>
+                      <p className="text-amber-800 mb-4 leading-relaxed">
+                        We've sent a secure verification email to your inbox. Please check your email and click the verification link to activate your account and start using Lyvo+.
+                      </p>
+                      
+                      {/* Important Notes */}
+                      <div className="bg-white bg-opacity-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-amber-900 mb-2 flex items-center">
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Important Notes:
+                        </h4>
+                        <ul className="text-sm text-amber-800 space-y-1">
+                          <li className="flex items-start">
+                            <span className="text-amber-600 mr-2">•</span>
+                            Check your spam/junk folder if you don't see the email within 5 minutes
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-amber-600 mr-2">•</span>
+                            The verification link expires in 24 hours for security
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-amber-600 mr-2">•</span>
+                            You can only sign in after verifying your email address
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="space-y-4">
+                  <button
+                    onClick={handleNavigateToLogin}
+                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold py-4 px-6 hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg"
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                      </svg>
+                      <span>Go to Sign In (Auto-redirect in 5s)</span>
+                    </div>
+                  </button>
+                  
                   <button
                     onClick={() => setShowSuccessMessage(false)}
-                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium py-3 px-4 hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 active:scale-95"
+                    className="w-full bg-gray-100 text-gray-700 rounded-xl font-medium py-3 px-6 hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 transition-all duration-300 border border-gray-300"
                   >
                     Create Another Account
                   </button>
-                  <button
-                    onClick={handleNavigateToLogin}
-                    className="w-full bg-gray-100 text-gray-700 rounded-lg font-medium py-3 px-4 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-300"
-                  >
-                    Sign In Now
-                  </button>
+                </div>
+                
+                {/* Footer Note */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <p className="text-sm text-gray-500">
+                    Need help? Contact our support team at{' '}
+                    <a href="mailto:support@lyvo-plus.com" className="text-red-600 hover:text-red-500 font-medium">
+                      support@lyvo-plus.com
+                    </a>
+                  </p>
                 </div>
               </div>
             </div>

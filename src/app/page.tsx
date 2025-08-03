@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLoading } from './hooks/useLoading';
-import LoadingOverlay from './components/LoadingOverlay';
+
 import { 
   MapPin, 
   Search, 
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Navbar from './components/navbar/Navbar';
 import Footer from './components/footer/Footer';
+import LoadingOverlay from './components/LoadingOverlay';
 
 export default function Page() {
   const [searchLocation, setSearchLocation] = useState('');

@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/app/components/navbar/Navbar';
-import Footer from '@/app/components/footer/Footer';
+import { signInWithEmailAndPasswordFirebase, signInWithGoogle } from '@/lib/firebase';
+import EmailVerificationModal from '@/app/components/EmailVerificationModal';
+import { useJWT } from '@/hooks/useJWT';
 
 interface ValidationErrors {
   email?: string;
@@ -12,13 +14,29 @@ interface ValidationErrors {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
-  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [touched, setTouched] = useState<ValidationErrors>({});
+  const [focusedField, setFocusedField] = useState<string>('');
+  
+  // Email verification modal state
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [unverifiedUser, setUnverifiedUser] = useState<any>(null);
+
+  // JWT authentication hook
+  const { login: jwtLogin, isAuthenticated } = useJWT();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push(redirectTo);
+    }
+  }, [isAuthenticated, router, redirectTo]);
 
   const validateEmail = (email: string): string | undefined => {
     if (!email.trim()) {
@@ -40,35 +58,21 @@ export default function LoginPage() {
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
-    
-    let error: string | undefined;
-    
-    switch (field) {
-      case 'email':
-        error = validateEmail(email);
-        break;
-      case 'password':
-        error = validatePassword(password);
-        break;
-    }
-    
-    setErrors(prev => ({ ...prev, [field]: error }));
+    setFocusedField('');
   };
 
   const handleInputChange = (field: string, value: string) => {
-    switch (field) {
-      case 'email':
-        setEmail(value);
-        break;
-      case 'password':
-        setPassword(value);
-        break;
-    }
+    // Update the field value
+    if (field === 'email') setEmail(value);
+    if (field === 'password') setPassword(value);
     
     // Clear error when user starts typing
-    if (touched[field] && errors[field as keyof ValidationErrors]) {
+    if (errors[field as keyof ValidationErrors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+    
+    // Mark as touched
+    setTouched(prev => ({ ...prev, [field]: true }));
   };
 
   const validateForm = (): boolean => {
@@ -83,7 +87,8 @@ export default function LoginPage() {
       password: true
     });
     
-    return Object.keys(newErrors).length === 0;
+    // Check if there are any actual error values (not undefined)
+    return !Object.values(newErrors).some(error => error !== undefined);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,11 +101,36 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      // Simulate login process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // First try JWT login
+      const jwtResult = await jwtLogin(email.trim(), password);
       
-      // Redirect to dashboard
-      router.push('/dashboard');
+      if (jwtResult.success) {
+        // JWT login successful, redirect to dashboard
+        router.push(redirectTo);
+        return;
+      }
+      
+      // If JWT login fails, try Firebase login
+      const { user, error } = await signInWithEmailAndPasswordFirebase(email.trim(), password);
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        
+        // Check if it's an email verification error
+        if (error.includes('verify your email')) {
+          // Show email verification modal instead of alert
+          setUnverifiedUser({ email: email.trim() });
+          setShowEmailVerificationModal(true);
+        } else {
+          alert(`Sign in failed: ${error}`);
+        }
+        return;
+      }
+      
+      if (user) {
+        // Firebase login successful, redirect to dashboard
+        router.push(redirectTo);
+      }
     } catch (error: any) {
       console.error('Sign in error:', error);
       alert('Sign in failed. Please try again.');
@@ -109,9 +139,44 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    // Simulate Google sign-in
-    alert('Google sign-in functionality would be implemented here');
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    
+    try {
+      const { user, error } = await signInWithGoogle();
+      
+      if (error) {
+        console.error('Google sign-in error:', error);
+        
+        // Provide more helpful error messages
+        if (error.includes('popup')) {
+          alert('Google sign-in popup was blocked. Please allow popups for this site and try again, or use email/password sign-in.');
+        } else if (error.includes('sessionStorage')) {
+          alert('Google sign-in encountered a browser compatibility issue. Please try using email/password sign-in instead.');
+        } else {
+          alert(`Google sign-in failed: ${error}. Please try again or use email/password sign-in.`);
+        }
+        return;
+      }
+      
+      // For mobile devices, user will be null because they're being redirected
+      // For desktop devices, user will be available immediately
+      if (user) {
+        // Redirect to dashboard after successful Google sign-in (desktop)
+        router.push(redirectTo);
+      } else {
+        // For mobile devices, the user is being redirected
+        // The AuthContext will handle the redirect result when they return
+        console.log('Google sign-in initiated. You will be redirected to Google...');
+        // Show a brief message to the user
+        alert('Redirecting to Google for sign-in. You will be returned to Lyvo+ after signing in.');
+      }
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      alert('Google sign-in failed. Please try again or use email/password sign-in.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleNavigateToRegister = () => {
@@ -128,6 +193,18 @@ export default function LoginPage() {
             <div className="text-center mb-6 sm:mb-8">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Welcome back</h1>
               <p className="text-sm sm:text-base text-gray-600">Sign in to your account</p>
+              
+              {/* Email Verification Notice */}
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-blue-800">
+                    New users: Check your email for verification link after registration
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Google Sign In Button */}
@@ -180,7 +257,7 @@ export default function LoginPage() {
               {/* Email Field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  Email
                 </label>
                 <input
                   type="email"
@@ -195,9 +272,10 @@ export default function LoginPage() {
                       ? 'border-red-500 shadow-sm' 
                       : touched.email && errors.email 
                         ? 'border-red-500' 
-                        : 'border-gray-300 hover:border-gray-400'
+                        : 'border-gray-300'
                   }`}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your email"
+                  disabled={isLoading}
                 />
                 {touched.email && errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>
@@ -209,88 +287,69 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                   Password
                 </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    name="password"
-                    value={password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    onBlur={() => handleBlur('password')}
-                    onFocus={() => setFocusedField('password')}
-                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 text-gray-900 ${
-                      focusedField === 'password' 
-                        ? 'border-red-500 shadow-sm' 
-                        : touched.password && errors.password 
-                          ? 'border-red-500' 
-                          : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                    placeholder="Enter your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPassword(!showPassword);
-                      console.log('Password visibility toggled:', !showPassword);
-                    }}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center justify-center w-10 h-full text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none transition-colors duration-200"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? (
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.639 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.639 0-8.573-3.007-9.963-7.178z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  onBlur={() => handleBlur('password')}
+                  onFocus={() => setFocusedField('password')}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 text-gray-900 ${
+                    focusedField === 'password' 
+                      ? 'border-red-500 shadow-sm' 
+                      : touched.password && errors.password 
+                        ? 'border-red-500' 
+                        : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                />
                 {touched.password && errors.password && (
                   <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                 )}
               </div>
 
-              {/* Sign In Button */}
+              {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading || !email || !password}
-                className="w-full h-12 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center relative overflow-hidden"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-semibold py-3 px-4 hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
-                  <>
+                  <div className="flex items-center justify-center">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    <span>Signing in...</span>
-                  </>
-                ) : !email || !password ? (
-                  <span className="text-gray-300">Please fill in all fields</span>
+                    Signing in...
+                  </div>
                 ) : (
-                  <>
-                    <span className="relative z-10">Sign In</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 opacity-0 hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </>
+                  'Sign in'
                 )}
               </button>
             </form>
 
-            {/* Sign Up Link */}
+            {/* Footer */}
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
-                <button 
+                <button
                   onClick={handleNavigateToRegister}
-                  className="font-medium text-red-600 hover:text-red-500 hover:underline transition-all duration-200"
+                  className="text-red-600 hover:text-red-500 font-medium underline"
                 >
-                  Sign up here
+                  Sign up
                 </button>
               </p>
             </div>
           </div>
         </div>
       </div>
-      <Footer />
+
+      {/* Email Verification Modal */}
+      <EmailVerificationModal
+        isOpen={showEmailVerificationModal}
+        onClose={() => setShowEmailVerificationModal(false)}
+        user={unverifiedUser}
+        email={unverifiedUser?.email || ''}
+      />
     </div>
   );
 }
